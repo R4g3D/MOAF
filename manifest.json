@@ -1,0 +1,15 @@
+{
+	"name": "MOAF",
+	"description": "Add Later",
+	"version": "0.1",
+	"minimum_chrome_version": "16.0.884",
+	"permissions": ["<all_urls>", "tabs", "*://*.facebook.com/*"],
+	"content_scripts": [
+    {
+      "matches": [ "*://*.facebook.com/*" ],
+      "js": ["jquery-2.1.4.min.js", "add_dislike.js"],
+      "all_frames": true
+    }],
+	"browser_action": {"default_popup": "popup.html"},
+	"manifest_version": 2
+}
