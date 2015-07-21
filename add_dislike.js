@@ -17,16 +17,8 @@ function insert_dislike_button_comment(nodeCom){
 }
 
 $('body').on('click', '.UFIDislikeLink', function(){
-	alert('works')
+	alert($(this).parents('.userContentWrapper').first().text());
 });
-
-// $('body').on('click', '.UFIDislikeLink', function(){
-// 	alert(this.closest('._5jmm _5pat _3lb4 _x72 _50nb').innerHTML)
-// });
-
-// $('body').delegate('.UFIDislikeLink', 'click', function(){
-// 	alert(this.closest('._5jmm _5pat _3lb4 _x72 _50nb').innerHTML);
-// });
 
 window.onload = function(){
     var node = document.getElementsByClassName('_4l5');
