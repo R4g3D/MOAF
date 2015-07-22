@@ -1,4 +1,4 @@
-Mother Of A Friend:
+Mother Of A Friend (work in progress):
 Google Chrome Extension to determine a Facebook user's direct relatives.
 
 To Install:
