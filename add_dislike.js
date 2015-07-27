@@ -16,43 +16,52 @@ function insert_dislike_button_comment(nodeCom){
 	}
 }
 
+function get_user_name(userURL){
+	userURL = userURL.replace('https://www.facebook.com/', '');
+	userURL = userURL.replace('https://facebook.com/', '');
+	var slash_index = userURL.indexOf('/');
+    var question_index = userURL.indexOf('?');
+    var userID = '';
+    if (slash_index != -1){
+        userID = userURL.substring(0, slash_index);
+    } else if (question_index != -1) {
+    	var tempID = userURL.substring(question_index, userURL.length);
+        var userID = userURL.substring(0, question_index);
+        if (tempID.includes('id=')){
+        	var ampersan_index = tempID.indexOf('&');
+        	var equal_index = tempID.indexOf('=');
+        	if (ampersan_index != -1){
+        		userID = tempID.substring(equal_index + 1, ampersan_index);
+        	} else {
+        		userID = tempID.substring(equal_index + 1, tempID.length);
+        	}
+        	return userID;
+        }
+    }
+    return userID;
+}
+
+function get_friends(userID, friendID){
+	$.get(userID+'?and='+friendID+'&sk=friends', function(page){
+		alert($(this).find('._8o').first().attr('href')); // not working
+	});
+}
+
 $('body').on('click', '.UFIDislikeLink', function(){
-	alert($(this).parents('.userContentWrapper').first().text());
-	var uname = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
-	uname = getUserName(uname);
-	alert(uname);
+	var proof = $(this).parents('.userContentWrapper').first().text();
+	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
+	var posterID = get_user_name(posterURL);
+	get_friends('me', posterID);
 });
 
 $('body').on('click', '.UFIDislikeCommentLink', function(){
-	alert($(this).parents('.userContentWrapper').first().text());
-	var uname = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
-	uname = getUserName(uname);
-	alert(uname);
+	var proof = $(this).parents('.userContentWrapper').first().text();
+	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
+	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
+	var posterID = get_user_name(posterURL);
+	var commenterID = get_user_name(commenterURL);
+	get_friends(commenterID, posterID);
 });
-
-function getUserName(uname){
-	uname = uname.replace('https://www.facebook.com/', '');
-	uname = uname.replace('https://facebook.com/', '');
-	var slash_index = uname.indexOf('/');
-    var question_index = uname.indexOf('?');
-    var uid = '';
-    if (slash_index != -1){
-        uname = uname.substring(0, slash_index);
-    } else if (question_index != -1) {
-    	uid = uname.substring(question_index, uname.length);
-        uname = uname.substring(0, question_index);
-        if (uid.includes('id=')){
-        	var ampersan_index = uid.indexOf('&');
-        	if (ampersan_index != -1){
-        		uid = uid.substring(0, uid.indexOf('&'));
-        	} else {
-        		uid = uid.substring(0, uid.length);
-        	}
-        	return uid;
-        }
-    }
-    return uname;
-}
 
 window.onload = function(){
     var node = document.getElementsByClassName('_4l5');
