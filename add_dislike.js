@@ -41,9 +41,21 @@ function get_user_name(userURL){
     return userID;
 }
 
-function get_friends(userID, friendID){
+function asArray(x) {
+	return [].slice.call(x);
+}
+
+function get_friends(userID, friendID, callback){
 	$.get(userID+'?and='+friendID+'&sk=friends', function(page){
-		alert($(this).find('._8o').first().attr('href')); // not working
+		var mutualFriends = $(page).filter('code').map(function() {
+		  	var mutualFriendsImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._8o');
+		  	if (mutualFriendsImgs == undefined || mutualFriendsImgs.length == 0) {
+			  	return null;
+		  	}
+		  	return mutualFriendsImgs.map(function(){ return $(this).attr('href'); });
+		})[0];
+		mutualFriends = asArray(mutualFriends);
+		callback(mutualFriends);
 	});
 }
 
@@ -51,7 +63,9 @@ $('body').on('click', '.UFIDislikeLink', function(){
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var posterID = get_user_name(posterURL);
-	get_friends('me', posterID);
+	get_friends('me', posterID, function(mutualFriends){
+		alert(mutualFriends);
+	});
 });
 
 $('body').on('click', '.UFIDislikeCommentLink', function(){
@@ -60,7 +74,7 @@ $('body').on('click', '.UFIDislikeCommentLink', function(){
 	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
 	var posterID = get_user_name(posterURL);
 	var commenterID = get_user_name(commenterURL);
-	get_friends(commenterID, posterID);
+	// get_friends(commenterID, posterID);
 });
 
 window.onload = function(){
