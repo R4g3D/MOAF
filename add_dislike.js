@@ -41,12 +41,8 @@ function get_user_name(userURL){
     return userID;
 }
 
-function asArray(x) {
-	return [].slice.call(x);
-}
-
-function get_friends(userID, friendID, callback){
-	$.get(userID+'?and='+friendID+'&sk=friends', function(page){
+function get_friends(friendID, userID, callback){
+	$.get(friendID+'?and='+userID+'&sk=friends', function(page){
 		var mutualFriends = $(page).filter('code').map(function() {
 		  	var mutualFriendsImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._8o');
 		  	if (mutualFriendsImgs == undefined || mutualFriendsImgs.length == 0) {
@@ -59,12 +55,34 @@ function get_friends(userID, friendID, callback){
 	});
 }
 
+function asArray(x) {
+	return [].slice.call(x);
+}
+
+// function removeDuplicated(names)
+// {
+//     return names.reduce(function(a,b){ if(a.indexOf(b)<0) a.push(b); return a; },[]);
+// }
+
+// Array.prototype.diff = function(a){
+//     return this.filter(function(i){ return a.indexOf(i) < 0; });
+// };
+
+var allFriends = new Array();
+
 $('body').on('click', '.UFIDislikeLink', function(){
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var posterID = get_user_name(posterURL);
-	get_friends('me', posterID, function(mutualFriends){
-		alert(mutualFriends);
+	get_friends('me', posterID, function get_more_friends(mutualFriends){
+		mutualFriends.forEach(function(friendURL){
+			var friendID = get_user_name(friendURL);
+			if (allFriends.indexOf(friendID) == -1){
+				allFriends.push(friendID);
+				console.log(friendID);
+				get_friends(friendID, posterID, get_more_friends);
+			}
+		});
 	});
 });
 
@@ -74,7 +92,16 @@ $('body').on('click', '.UFIDislikeCommentLink', function(){
 	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
 	var posterID = get_user_name(posterURL);
 	var commenterID = get_user_name(commenterURL);
-	// get_friends(commenterID, posterID);
+	get_friends(posterID, commenterID, function get_more_friends(mutualFriends){
+		mutualFriends.forEach(function(friendURL){
+			var friendID = get_user_name(friendURL);
+			if (allFriends.indexOf(friendID) == -1){
+				allFriends.push(friendID);
+				console.log(friendID);
+				get_friends(friendID, commenterID, get_more_friends);
+			}
+		});
+	});
 });
 
 window.onload = function(){
