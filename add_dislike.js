@@ -62,7 +62,7 @@ $('body').on('click', '.UFIDislikeLink', function(){
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var posterID = get_user_name(posterURL);
 	var outstanding = 0;
-	var get_friends = function(friendID, userID, callback){
+	var get_friends = function(friendID, userID, get_more_friends){
 		outstanding++;
 		$.get(friendID+'?and='+userID+'&sk=friends', function(page){
 			outstanding--;
@@ -74,7 +74,7 @@ $('body').on('click', '.UFIDislikeLink', function(){
 			  	return mutualFriendsImgs.map(function(){ return $(this).attr('href'); });
 			})[0];
 			mutualFriends = asArray(mutualFriends);
-			callback(mutualFriends);
+			get_more_friends(mutualFriends);
 			if (outstanding == 0) {
 				console.log(allFriends.length);
 			}
@@ -85,7 +85,7 @@ $('body').on('click', '.UFIDislikeLink', function(){
 			var friendID = get_user_name(friendURL);
 			if (allFriends.indexOf(friendID) == -1){
 				allFriends.push(friendID);
-				console.log(friendID);
+				// console.log(friendID);
 				get_friends(friendID, posterID, get_more_friends);
 			}
 		}
@@ -100,16 +100,36 @@ $('body').on('click', '.UFIDislikeCommentLink', function(){
 	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
 	var posterID = get_user_name(posterURL);
 	var commenterID = get_user_name(commenterURL);
-	get_friends(posterID, commenterID, function get_more_friends(mutualFriends){
-		mutualFriends.forEach(function(friendURL){
+	var get_friends = function(friendID, userID, get_more_friends){
+		outstanding++;
+		$.get(friendID+'?and='+userID+'&sk=friends', function(page){
+			outstanding--;
+			var mutualFriends = $(page).filter('code').map(function() {
+			  	var mutualFriendsImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._8o');
+			  	if (mutualFriendsImgs == undefined || mutualFriendsImgs.length == 0) {
+				  	return null;
+			  	}
+			  	return mutualFriendsImgs.map(function(){ return $(this).attr('href'); });
+			})[0];
+			mutualFriends = asArray(mutualFriends);
+			get_more_friends(mutualFriends);
+			if (outstanding == 0) {
+				console.log(allFriends.length);
+			}
+		});
+	}
+	var get_more_friends = function(mutualFriends){
+		var push_into_list = function(friendURL){
 			var friendID = get_user_name(friendURL);
 			if (allFriends.indexOf(friendID) == -1){
 				allFriends.push(friendID);
-				console.log(friendID);
+				// console.log(friendID);
 				get_friends(friendID, commenterID, get_more_friends);
 			}
-		});
-	});
+		}
+		mutualFriends.forEach(push_into_list);
+	}
+	get_friends(posterID, commenterID, get_more_friends);
 });
 
 window.onload = function(){
