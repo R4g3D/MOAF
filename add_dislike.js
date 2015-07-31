@@ -41,19 +41,6 @@ function get_user_name(userURL){
     return userID;
 }
 
-function get_friends(friendID, userID, callback){
-	$.get(friendID+'?and='+userID+'&sk=friends', function(page){
-		var mutualFriends = $(page).filter('code').map(function() {
-		  	var mutualFriendsImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._8o');
-		  	if (mutualFriendsImgs == undefined || mutualFriendsImgs.length == 0) {
-			  	return null;
-		  	}
-		  	return mutualFriendsImgs.map(function(){ return $(this).attr('href'); });
-		})[0];
-		mutualFriends = asArray(mutualFriends);
-		callback(mutualFriends);
-	});
-}
 
 function asArray(x) {
 	return [].slice.call(x);
@@ -74,16 +61,37 @@ $('body').on('click', '.UFIDislikeLink', function(){
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var posterID = get_user_name(posterURL);
-	get_friends('me', posterID, function get_more_friends(mutualFriends){
-		mutualFriends.forEach(function(friendURL){
+	var outstanding = 0;
+	var get_friends = function(friendID, userID, callback){
+		outstanding++;
+		$.get(friendID+'?and='+userID+'&sk=friends', function(page){
+			outstanding--;
+			var mutualFriends = $(page).filter('code').map(function() {
+			  	var mutualFriendsImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._8o');
+			  	if (mutualFriendsImgs == undefined || mutualFriendsImgs.length == 0) {
+				  	return null;
+			  	}
+			  	return mutualFriendsImgs.map(function(){ return $(this).attr('href'); });
+			})[0];
+			mutualFriends = asArray(mutualFriends);
+			callback(mutualFriends);
+			if (outstanding == 0) {
+				console.log('asjlhgklahfkjahf');
+			}
+		});
+	}
+	var get_more_friends = function(mutualFriends){
+		var push_into_list = function(friendURL){
 			var friendID = get_user_name(friendURL);
 			if (allFriends.indexOf(friendID) == -1){
 				allFriends.push(friendID);
 				console.log(friendID);
 				get_friends(friendID, posterID, get_more_friends);
 			}
-		});
-	});
+		}
+		mutualFriends.forEach(push_into_list);
+	}
+	get_friends('me', posterID, get_more_friends);
 });
 
 $('body').on('click', '.UFIDislikeCommentLink', function(){
