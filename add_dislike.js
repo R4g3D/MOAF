@@ -76,7 +76,7 @@ $('body').on('click', '.UFIDislikeLink', function(){
 			mutualFriends = asArray(mutualFriends);
 			callback(mutualFriends);
 			if (outstanding == 0) {
-				console.log('asjlhgklahfkjahf');
+				console.log(allFriends.length);
 			}
 		});
 	}
