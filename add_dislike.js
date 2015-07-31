@@ -46,21 +46,7 @@ function asArray(x) {
 	return [].slice.call(x);
 }
 
-// function removeDuplicated(names)
-// {
-//     return names.reduce(function(a,b){ if(a.indexOf(b)<0) a.push(b); return a; },[]);
-// }
-
-// Array.prototype.diff = function(a){
-//     return this.filter(function(i){ return a.indexOf(i) < 0; });
-// };
-
-var allFriends = new Array();
-
-$('body').on('click', '.UFIDislikeLink', function(){
-	var proof = $(this).parents('.userContentWrapper').first().text();
-	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
-	var posterID = get_user_name(posterURL);
+function get_all_friends(friendID, userID) {
 	var outstanding = 0;
 	var get_friends = function(friendID, userID, get_more_friends){
 		outstanding++;
@@ -86,12 +72,21 @@ $('body').on('click', '.UFIDislikeLink', function(){
 			if (allFriends.indexOf(friendID) == -1){
 				allFriends.push(friendID);
 				// console.log(friendID);
-				get_friends(friendID, posterID, get_more_friends);
+				get_friends(friendID, userID, get_more_friends);
 			}
 		}
 		mutualFriends.forEach(push_into_list);
 	}
-	get_friends('me', posterID, get_more_friends);
+	get_friends(friendID, userID, get_more_friends);
+}
+
+var allFriends = new Array();
+
+$('body').on('click', '.UFIDislikeLink', function(){
+	var proof = $(this).parents('.userContentWrapper').first().text();
+	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
+	var posterID = get_user_name(posterURL);
+	get_all_friends('me', posterID);
 });
 
 $('body').on('click', '.UFIDislikeCommentLink', function(){
@@ -100,36 +95,11 @@ $('body').on('click', '.UFIDislikeCommentLink', function(){
 	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
 	var posterID = get_user_name(posterURL);
 	var commenterID = get_user_name(commenterURL);
-	var get_friends = function(friendID, userID, get_more_friends){
-		outstanding++;
-		$.get(friendID+'?and='+userID+'&sk=friends', function(page){
-			outstanding--;
-			var mutualFriends = $(page).filter('code').map(function() {
-			  	var mutualFriendsImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._8o');
-			  	if (mutualFriendsImgs == undefined || mutualFriendsImgs.length == 0) {
-				  	return null;
-			  	}
-			  	return mutualFriendsImgs.map(function(){ return $(this).attr('href'); });
-			})[0];
-			mutualFriends = asArray(mutualFriends);
-			get_more_friends(mutualFriends);
-			if (outstanding == 0) {
-				console.log(allFriends.length);
-			}
-		});
+	if (posterID == commenterID) {
+		get_all_friends('me', commenterID);
+	} else {
+		get_all_friends(posterID, commenterID);
 	}
-	var get_more_friends = function(mutualFriends){
-		var push_into_list = function(friendURL){
-			var friendID = get_user_name(friendURL);
-			if (allFriends.indexOf(friendID) == -1){
-				allFriends.push(friendID);
-				// console.log(friendID);
-				get_friends(friendID, commenterID, get_more_friends);
-			}
-		}
-		mutualFriends.forEach(push_into_list);
-	}
-	get_friends(posterID, commenterID, get_more_friends);
 });
 
 window.onload = function(){
