@@ -116,7 +116,7 @@ function writeFriends(userID){
     closeButtonNode = document.getElementsByClassName("fb_close_button")[0];
     closeButtonNode.onclick = function(){
         var node = document.getElementsByClassName("moaf_result_container")[0];
-        node.style.display = "none";
+        var body = document.getElementsByTagName("body")[0].removeChild(node);
     };
 }
 
