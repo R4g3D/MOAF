@@ -41,7 +41,6 @@ function get_user_name(userURL){
     return userID;
 }
 
-
 function asArray(x) {
 	return [].slice.call(x);
 }
@@ -62,7 +61,9 @@ function get_all_friends(friendID, userID) {
 			mutualFriends = asArray(mutualFriends);
 			get_more_friends(mutualFriends);
 			if (outstanding == 0) {
-				console.log(allFriends.length);
+				writeFriends(userID);
+				// console.log(allFriends);
+				// console.log(allFriends.length);
 			}
 		});
 	}
@@ -80,12 +81,54 @@ function get_all_friends(friendID, userID) {
 	get_friends(friendID, userID, get_more_friends);
 }
 
+function create_view(){
+	var node = document.createElement("div");    
+    node.className = "moaf_result_container";
+    node.style.position = "fixed";
+    node.style.background = "rgba(201, 213, 236, 0.9)";
+    node.style.top = "200px";
+    node.style.width = "70%";
+    node.style.left = "10%";
+    node.style.zIndex = "9999";
+    node.style.padding = "30px";
+    node.style.overflow = "scroll";
+    node.style.maxHeight = "60%";
+    var loading = document.createElement("div");
+    loading.id = "loading";
+    loading.innerHTML += '<center><img src="http://www.schultzlawoffice.com/img/loading/loading-x.gif" alt="Loading..."></center>';
+    node.appendChild(loading);
+	document.getElementsByTagName("body")[0].appendChild(node);
+}
+
+function writeFriends(userID){
+	var closeButton = '<button class="fb_close_button" style="position:absolute;top:20px;right:20px">Close</button>';
+
+    var friendsString = "<h2>Total of "+allFriends.length+" regular friends were found for "+userID+"</h2><p>";
+    allFriends.forEach(function(friendID){
+        friendsString += '<a href="https://www.facebook.com/'+friendID+'">'+friendID+'</a> ';
+    });
+    friendsString += '</p>';
+  
+    var node = document.getElementsByClassName("moaf_result_container")[0];
+    var loading = document.getElementById("loading");
+    node.removeChild(loading);
+	node.innerHTML = closeButton+friendsString;
+    closeButtonNode = document.getElementsByClassName("fb_close_button")[0];
+    closeButtonNode.onclick = function(){
+        var node = document.getElementsByClassName("moaf_result_container")[0];
+        node.style.display = "none";
+    };
+}
+
 var allFriends = new Array();
 
 $('body').on('click', '.UFIDislikeLink', function(){
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var posterID = get_user_name(posterURL);
+	allFriends = new Array();
+	// console.log(posterID);
+	create_view();
 	get_all_friends('me', posterID);
 });
 
@@ -95,6 +138,9 @@ $('body').on('click', '.UFIDislikeCommentLink', function(){
 	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
 	var posterID = get_user_name(posterURL);
 	var commenterID = get_user_name(commenterURL);
+	allFriends = new Array();
+	// console.log(commenterID);
+	create_view();
 	if (posterID == commenterID) {
 		get_all_friends('me', commenterID);
 	} else {
@@ -123,3 +169,9 @@ window.setInterval(function(){
         insert_dislike_button_comment(nodeCom);
     }
 }, 2000);
+
+// ----------------------------------------------------------------------------------------------------
+// FUTURE WORK
+// ----------------------------------------------------------------------------------------------------
+
+// Add Loading Animation
