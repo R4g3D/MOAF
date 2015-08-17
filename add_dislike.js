@@ -61,8 +61,7 @@ function get_all_friends(friendID, userID) {
 			mutualFriends = asArray(mutualFriends);
 			get_more_friends(mutualFriends);
 			if (outstanding == 0) {
-				writeFriends(userID);
-				// console.log(allFriends);
+				getFamilyInfo(userID);
 			}
 		});
 	}
@@ -71,7 +70,6 @@ function get_all_friends(friendID, userID) {
 			var friendID = get_user_name(friendURL);
 			if (allFriends.indexOf(friendID) == -1){
 				allFriends.push(friendID);
-				// console.log(friendID);
 				get_friends(friendID, userID, get_more_friends);
 			}
 		}
@@ -99,8 +97,22 @@ function create_view(){
 	document.getElementsByTagName("body")[0].appendChild(node);
 }
 
-function writeFriends(userID){
+function writeAll(userID){
 	var closeButton = '<button class="fb_close_button" style="position:absolute;top:20px;right:20px">Close</button>';
+
+	var relationshipString = "";
+	if (relationshipID != null){
+		relationshipString = "<h2>"+userID+" is in a relationship with " + '<a href="https://www.facebook.com/'+relationshipID+'">'+relationshipID+'</a></h2>';
+	}
+
+	var familyString = "";
+	if (allFamily != null && allFamily.length != 0){
+		familyString = "<h2>Total of "+allFamily.length+" family members were found for "+userID+"</h2><p>";
+	    allFamily.forEach(function(familyID){
+	        familyString += '<a href="https://www.facebook.com/'+familyID+'">'+familyID+'</a> ';
+	    });
+	    familyString += '</p>';
+	}
 
     var friendsString = "<h2>Total of "+allFriends.length+" regular friends were found for "+userID+"</h2><p>";
     allFriends.forEach(function(friendID){
@@ -111,7 +123,7 @@ function writeFriends(userID){
     var node = document.getElementsByClassName("moaf_result_container")[0];
     var loading = document.getElementById("loading");
     node.removeChild(loading);
-	node.innerHTML = closeButton+friendsString;
+	node.innerHTML = closeButton + relationshipString + familyString + friendsString;
     closeButtonNode = document.getElementsByClassName("fb_close_button")[0];
     closeButtonNode.onclick = function(){
         var node = document.getElementsByClassName("moaf_result_container")[0];
@@ -119,8 +131,8 @@ function writeFriends(userID){
     };
 }
 
-function getFamilyInfo(targetID){
-	$.get(targetID+"/about?section=relationship&pnref=about", function(page){
+function getFamilyInfo(userID){
+	$.get(userID+"/about?section=relationship&pnref=about", function(page){
 		var familyMembers = $(page).filter('code').map(function() {
 			var familyMembersImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._3-91');
 			if (familyMembersImgs == undefined || familyMembersImgs.length == 0) {
@@ -140,8 +152,7 @@ function getFamilyInfo(targetID){
 				allFamily.push(get_user_name(familyURL));
 			});
 		}
-		console.log(relationshipID);
-		console.log(allFamily);
+		writeAll(userID);
 	});
 }
 
@@ -156,9 +167,8 @@ $('body').on('click', '.UFIDislikeLink', function(){
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var posterID = get_user_name(posterURL);
-	// create_view();
-	// get_all_friends('me', posterID);
-	getFamilyInfo(posterID);
+	create_view();
+	get_all_friends('me', posterID);
 });
 
 $('body').on('click', '.UFIDislikeCommentLink', function(){
@@ -170,13 +180,12 @@ $('body').on('click', '.UFIDislikeCommentLink', function(){
 	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
 	var posterID = get_user_name(posterURL);
 	var commenterID = get_user_name(commenterURL);
-	// create_view();
-	// if (posterID == commenterID) {
-	// 	get_all_friends('me', commenterID);
-	// } else {
-	// 	get_all_friends(posterID, commenterID);
-	// }
-	getFamilyInfo(commenterID);
+	create_view();
+	if (posterID == commenterID) {
+		get_all_friends('me', commenterID);
+	} else {
+		get_all_friends(posterID, commenterID);
+	}
 });
 
 window.onload = function(){
