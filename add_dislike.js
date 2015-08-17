@@ -21,7 +21,7 @@ function get_user_name(userURL){
 	userURL = userURL.replace('https://facebook.com/', '');
 	var slash_index = userURL.indexOf('/');
     var question_index = userURL.indexOf('?');
-    var userID = '';
+    var userID = userURL;
     if (slash_index != -1){
         userID = userURL.substring(0, slash_index);
     } else if (question_index != -1) {
@@ -63,7 +63,6 @@ function get_all_friends(friendID, userID) {
 			if (outstanding == 0) {
 				writeFriends(userID);
 				// console.log(allFriends);
-				// console.log(allFriends.length);
 			}
 		});
 	}
@@ -120,32 +119,64 @@ function writeFriends(userID){
     };
 }
 
+function getFamilyInfo(targetID){
+	$.get(targetID+"/about?section=relationship&pnref=about", function(page){
+		var familyMembers = $(page).filter('code').map(function() {
+			var familyMembersImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._3-91');
+			if (familyMembersImgs == undefined || familyMembersImgs.length == 0) {
+			  	return null;
+			}
+			return familyMembersImgs.map(function(){ return $(this).attr('href'); });
+		});
+		if (familyMembers[0] != undefined && familyMembers[1] != undefined) {
+			relationshipID = get_user_name(asArray(familyMembers[0])[0]);
+			familyMembers = asArray(familyMembers[1]);
+			familyMembers.forEach(function(familyURL){
+				allFamily.push(get_user_name(familyURL));
+			});
+		} else if (familyMembers[0] != undefined && familyMembers[1] == undefined){
+			familyMembers = asArray(familyMembers[0]);
+			familyMembers.forEach(function(familyURL){
+				allFamily.push(get_user_name(familyURL));
+			});
+		}
+		console.log(relationshipID);
+		console.log(allFamily);
+	});
+}
+
 var allFriends = new Array();
+var allFamily = new Array();
+var relationshipID = null;
 
 $('body').on('click', '.UFIDislikeLink', function(){
+	allFriends = new Array();
+	allFriends = new Array();
+	relationshipID = null;
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var posterID = get_user_name(posterURL);
-	allFriends = new Array();
-	// console.log(posterID);
-	create_view();
-	get_all_friends('me', posterID);
+	// create_view();
+	// get_all_friends('me', posterID);
+	getFamilyInfo(posterID);
 });
 
 $('body').on('click', '.UFIDislikeCommentLink', function(){
+	allFriends = new Array();
+	allFriends = new Array();
+	relationshipID = null;
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
 	var posterID = get_user_name(posterURL);
 	var commenterID = get_user_name(commenterURL);
-	allFriends = new Array();
-	// console.log(commenterID);
-	create_view();
-	if (posterID == commenterID) {
-		get_all_friends('me', commenterID);
-	} else {
-		get_all_friends(posterID, commenterID);
-	}
+	// create_view();
+	// if (posterID == commenterID) {
+	// 	get_all_friends('me', commenterID);
+	// } else {
+	// 	get_all_friends(posterID, commenterID);
+	// }
+	getFamilyInfo(commenterID);
 });
 
 window.onload = function(){
@@ -169,9 +200,3 @@ window.setInterval(function(){
         insert_dislike_button_comment(nodeCom);
     }
 }, 2000);
-
-// ----------------------------------------------------------------------------------------------------
-// FUTURE WORK
-// ----------------------------------------------------------------------------------------------------
-
-// Add Loading Animation
