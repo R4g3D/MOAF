@@ -61,7 +61,7 @@ function get_all_friends(friendID, userID) {
 			mutualFriends = asArray(mutualFriends);
 			get_more_friends(mutualFriends);
 			if (outstanding == 0) {
-				getFamilyInfo(userID);
+				allFriendsDone = true;
 			}
 		});
 	}
@@ -76,6 +76,31 @@ function get_all_friends(friendID, userID) {
 		mutualFriends.forEach(push_into_list);
 	}
 	get_friends(friendID, userID, get_more_friends);
+}
+
+function get_family_info(userID){
+	$.get(userID+'/about?section=relationship&pnref=about', function(page){
+		var familyMembers = $(page).filter('code').map(function() {
+			var familyMembersImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._3-91');
+			if (familyMembersImgs == undefined || familyMembersImgs.length == 0) {
+			  	return null;
+			}
+			return familyMembersImgs.map(function(){ return $(this).attr('href'); });
+		});
+		if (familyMembers[0] != undefined && familyMembers[1] != undefined) {
+			relationshipID = get_user_name(asArray(familyMembers[0])[0]);
+			familyMembers = asArray(familyMembers[1]);
+			familyMembers.forEach(function(familyURL){
+				allFamily.push(get_user_name(familyURL));
+			});
+		} else if (familyMembers[0] != undefined && familyMembers[1] == undefined){
+			familyMembers = asArray(familyMembers[0]);
+			familyMembers.forEach(function(familyURL){
+				allFamily.push(get_user_name(familyURL));
+			});
+		}
+		allFamilyDone = true;
+	});
 }
 
 function create_view(){
@@ -97,7 +122,7 @@ function create_view(){
 	document.getElementsByTagName("body")[0].appendChild(node);
 }
 
-function writeAll(userID){
+function write_all(userID){
 	var closeButton = '<button class="fb_close_button" style="position:absolute;top:20px;right:20px">Close</button>';
 
 	var relationshipString = "";
@@ -131,50 +156,47 @@ function writeAll(userID){
     };
 }
 
-function getFamilyInfo(userID){
-	$.get(userID+"/about?section=relationship&pnref=about", function(page){
-		var familyMembers = $(page).filter('code').map(function() {
-			var familyMembersImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._3-91');
-			if (familyMembersImgs == undefined || familyMembersImgs.length == 0) {
-			  	return null;
-			}
-			return familyMembersImgs.map(function(){ return $(this).attr('href'); });
-		});
-		if (familyMembers[0] != undefined && familyMembers[1] != undefined) {
-			relationshipID = get_user_name(asArray(familyMembers[0])[0]);
-			familyMembers = asArray(familyMembers[1]);
-			familyMembers.forEach(function(familyURL){
-				allFamily.push(get_user_name(familyURL));
-			});
-		} else if (familyMembers[0] != undefined && familyMembers[1] == undefined){
-			familyMembers = asArray(familyMembers[0]);
-			familyMembers.forEach(function(familyURL){
-				allFamily.push(get_user_name(familyURL));
-			});
-		}
-		writeAll(userID);
-	});
+function heuristics(userID){
+	if (allFriendsDone){
+		console.log("friends");
+	}
+	if (allFamilyDone){
+		console.log("family");
+	}
+	if (allFriendsDone && allFamilyDone){
+		console.log("both");
+		write_all(userID);
+	}
+	setTimeout(heuristics, 50);
 }
 
 var allFriends = new Array();
+var allFriendsDone = false;
 var allFamily = new Array();
+var allFamilyDone = false;
 var relationshipID = null;
 
-$('body').on('click', '.UFIDislikeLink', function(){
+function initialise(){
 	allFriends = new Array();
-	allFriends = new Array();
+	allFriendsDone = false;
+	allFamily = new Array();
+	allFamilyDone = false;
 	relationshipID = null;
+}
+
+$('body').on('click', '.UFIDislikeLink', function(){
+	initialise();
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var posterID = get_user_name(posterURL);
 	create_view();
 	get_all_friends('me', posterID);
+	get_family_info(posterID);
+	heuristics(posterID);
 });
 
 $('body').on('click', '.UFIDislikeCommentLink', function(){
-	allFriends = new Array();
-	allFriends = new Array();
-	relationshipID = null;
+	initialise();
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
 	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
@@ -186,6 +208,8 @@ $('body').on('click', '.UFIDislikeCommentLink', function(){
 	} else {
 		get_all_friends(posterID, commenterID);
 	}
+	get_family_info(commenterID);
+	heuristics(commenterID);
 });
 
 window.onload = function(){
