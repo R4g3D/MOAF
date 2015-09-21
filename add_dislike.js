@@ -88,7 +88,7 @@ function get_family_info(userID){
 			return familyMembersImgs.map(function(){ return $(this).attr('href'); });
 		});
 		if (familyMembers[0] != undefined && familyMembers[1] != undefined) {
-			relationshipID = get_user_name(asArray(familyMembers[0])[0]);
+			relationship.push(get_user_name(asArray(familyMembers[0])[0]));
 			familyMembers = asArray(familyMembers[1]);
 			familyMembers.forEach(function(familyURL){
 				allFamily.push(get_user_name(familyURL));
@@ -117,7 +117,7 @@ function create_view(){
     node.style.maxHeight = "60%";
     var loading = document.createElement("div");
     loading.id = "loading";
-    loading.innerHTML += '<center><img src="http://www.schultzlawoffice.com/img/loading/loading-x.gif" alt="Loading..."></center>';
+    loading.innerHTML += '<center><img src="https://upload.wikimedia.org/wikipedia/commons/d/de/Ajax-loader.gif" alt="Loading..."></center>';
     node.appendChild(loading);
 	document.getElementsByTagName("body")[0].appendChild(node);
 }
@@ -126,8 +126,8 @@ function write_all(userID){
 	var closeButton = '<button class="fb_close_button" style="position:absolute;top:20px;right:20px">Close</button>';
 
 	var relationshipString = "";
-	if (relationshipID != null){
-		relationshipString = "<h2>"+userID+" is in a relationship with " + '<a href="https://www.facebook.com/'+relationshipID+'">'+relationshipID+'</a></h2>';
+	if (relationship[0] != null){
+		relationshipString = "<h2>"+userID+" is in a relationship with " + '<a href="https://www.facebook.com/'+relationship[0]+'">'+relationship[0]+'</a></h2>';
 	}
 
 	var familyString = "";
@@ -158,30 +158,34 @@ function write_all(userID){
 
 function heuristics(userID){
 	if (allFriendsDone){
-		console.log("friends");
 	}
 	if (allFamilyDone){
-		console.log("family");
 	}
-	if (allFriendsDone && allFamilyDone){
-		console.log("both");
+	if (allFriendsDone && allFamilyDone && !done){
 		write_all(userID);
+		done = true;
 	}
-	setTimeout(heuristics, 50);
+	setTimeout(heuristics, 50, userID);
 }
 
-var allFriends = new Array();
-var allFriendsDone = false;
-var allFamily = new Array();
-var allFamilyDone = false;
-var relationshipID = null;
+var allFriends;
+var allFriendsData;
+var allFriendsDone;
+var allFamily;
+var allFamilyData;
+var allFamilyDone;
+var relationship;
+var done;
 
 function initialise(){
 	allFriends = new Array();
+	allFriendsData = new Array();
 	allFriendsDone = false;
 	allFamily = new Array();
+	allFamilyData = new Array();
 	allFamilyDone = false;
-	relationshipID = null;
+	relationship = new Array();
+	done = false;
 }
 
 $('body').on('click', '.UFIDislikeLink', function(){
