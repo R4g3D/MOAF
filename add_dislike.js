@@ -17,6 +17,7 @@ function insert_dislike_button_comment(nodeCom){
 }
 
 function get_user_name(userURL){
+	userURL = ''+userURL;
 	userURL = userURL.replace('https://www.facebook.com/', '');
 	userURL = userURL.replace('https://facebook.com/', '');
 	var slash_index = userURL.indexOf('/');
@@ -45,6 +46,10 @@ function asArray(x) {
 	return [].slice.call(x);
 }
 
+function withId(x) {
+	return function(o) { return o.id == x; };
+}
+
 function get_all_friends(friendID, userID) {
 	var outstanding = 0;
 	var get_friends = function(friendID, userID, get_more_friends){
@@ -52,11 +57,13 @@ function get_all_friends(friendID, userID) {
 		$.get(friendID+'?and='+userID+'&sk=friends', function(page){
 			outstanding--;
 			var mutualFriends = $(page).filter('code').map(function() {
-			  	var mutualFriendsImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._8o');
-			  	if (mutualFriendsImgs == undefined || mutualFriendsImgs.length == 0) {
+			  	var mutualFriendsLnks = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('div.fsl');
+			  	if (mutualFriendsLnks == undefined || mutualFriendsLnks.length == 0) {
 				  	return null;
 			  	}
-			  	return mutualFriendsImgs.map(function(){ return $(this).attr('href'); });
+			  	return mutualFriendsLnks.map(function(){
+			  		return { id : get_user_name($(this).children().first().attr('href')), name : $(this).children().first().text() };
+			  	});
 			})[0];
 			mutualFriends = asArray(mutualFriends);
 			get_more_friends(mutualFriends);
@@ -66,10 +73,10 @@ function get_all_friends(friendID, userID) {
 		});
 	}
 	var get_more_friends = function(mutualFriends){
-		var push_into_list = function(friendURL){
-			var friendID = get_user_name(friendURL);
-			if (allFriends.indexOf(friendID) == -1){
-				allFriends.push(friendID);
+		var push_into_list = function(friendObj){
+			var friendID = friendObj.id;
+			if (allFriends.findIndex(withId(friendID)) == -1){
+				allFriends.push(friendObj);
 				get_friends(friendID, userID, get_more_friends);
 			}
 		}
@@ -80,25 +87,30 @@ function get_all_friends(friendID, userID) {
 
 function get_family_info(userID){
 	$.get(userID+'/about?section=relationship&pnref=about', function(page){
+
+		var idx = 0;
 		var familyMembers = $(page).filter('code').map(function() {
-			var familyMembersImgs = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('a._3-91');
-			if (familyMembersImgs == undefined || familyMembersImgs.length == 0) {
-			  	return null;
+			var familyMembersSection = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('._50f5');
+			if (familyMembersSection.length == 0) { // I'm not in the right <code> section.
+				return null;
 			}
-			return familyMembersImgs.map(function(){ return $(this).attr('href'); });
+			// if I'm here, it's a family members section. Either populated or unpopulated, I don't know yet;
+			var familyMembersLnks = familyMembersSection.find('a');
+			var ret = familyMembersLnks.map(function(){
+				if (idx == 0) { // relationship section
+					var innerRet = { id : get_user_name($(this).attr('href')), name : $(this).text(), relationship : $(this).parent().next().text() };
+					return innerRet;
+				} else { // family section
+					var innerRet = { id : get_user_name($(this).attr('href')), name : $(this).text(), relationship : $(this).parent().parent().next().text() };
+					return innerRet;					
+				}
+			});
+			idx++;
+			return ret;
 		});
-		if (familyMembers[0] != undefined && familyMembers[1] != undefined) {
-			relationship.push(get_user_name(asArray(familyMembers[0])[0]));
-			familyMembers = asArray(familyMembers[1]);
-			familyMembers.forEach(function(familyURL){
-				allFamily.push(get_user_name(familyURL));
-			});
-		} else if (familyMembers[0] != undefined && familyMembers[1] == undefined){
-			familyMembers = asArray(familyMembers[0]);
-			familyMembers.forEach(function(familyURL){
-				allFamily.push(get_user_name(familyURL));
-			});
-		}
+		allFamily = asArray(familyMembers).reduce(function(state, curr) {
+			return state.concat(asArray(curr));
+		}, []);
 		allFamilyDone = true;
 	});
 }
@@ -126,22 +138,22 @@ function write_all(userID){
 	var closeButton = '<button class="fb_close_button" style="position:absolute;top:20px;right:20px">Close</button>';
 
 	var relationshipString = "";
-	if (relationship[0] != null){
-		relationshipString = "<h2>"+userID+" is in a relationship with " + '<a href="https://www.facebook.com/'+relationship[0]+'">'+relationship[0]+'</a></h2>';
+	if (relationship != undefined){
+		relationshipString = "<h2>"+userID+" is in a relationship with " + '<a href="https://www.facebook.com/'+relationship.id+'">'+relationship.name+'</a></h2>';
 	}
 
 	var familyString = "";
-	if (allFamily != null && allFamily.length != 0){
+	if (allFamily != undefined && allFamily.length != 0){
 		familyString = "<h2>Total of "+allFamily.length+" family members were found for "+userID+"</h2><p>";
-	    allFamily.forEach(function(familyID){
-	        familyString += '<a href="https://www.facebook.com/'+familyID+'">'+familyID+'</a> ';
+	    allFamily.forEach(function(familyObj){
+	        familyString += '<a href="https://www.facebook.com/'+familyObj.id+'">'+familyObj.name+'</a> ';
 	    });
 	    familyString += '</p>';
 	}
 
     var friendsString = "<h2>Total of "+allFriends.length+" regular friends were found for "+userID+"</h2><p>";
-    allFriends.forEach(function(friendID){
-        friendsString += '<a href="https://www.facebook.com/'+friendID+'">'+friendID+'</a> ';
+    allFriends.forEach(function(friendObj){
+        friendsString += '<a href="https://www.facebook.com/'+friendObj.id+'">'+friendObj.name+'</a> ';
     });
     friendsString += '</p>';
   
@@ -169,22 +181,18 @@ function heuristics(userID){
 }
 
 var allFriends;
-var allFriendsData;
 var allFriendsDone;
 var allFamily;
-var allFamilyData;
 var allFamilyDone;
 var relationship;
 var done;
 
 function initialise(){
 	allFriends = new Array();
-	allFriendsData = new Array();
 	allFriendsDone = false;
 	allFamily = new Array();
-	allFamilyData = new Array();
 	allFamilyDone = false;
-	relationship = new Array();
+	relationship = undefined;
 	done = false;
 }
 
