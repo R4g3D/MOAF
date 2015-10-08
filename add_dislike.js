@@ -1,6 +1,6 @@
 function insert_dislike_button(node){
 	for (i = 0; i < node.length; i++){
-	    var my_node = '<span><a class="UFIDislikeLink" href="#" role="button" aria-live="polite" title="Dislike this"><span>Dislike</span></a></span>';
+	    var my_node = '<span><a class="UFIDislikeLink" href="#" role="button" aria-live="polite" title="Dislike this post"><span>Dislike</span></a></span>';
 	    if (node[i].innerHTML.includes('UFILikeLink') && !node[i].innerHTML.includes('UFIDislikeLink') && !node[i].innerHTML.includes('UFIDislikeCommentLink')){
 	    	node[i].innerHTML += my_node;
 	    }
@@ -50,10 +50,26 @@ function withId(x) {
 	return function(o) { return o.id == x; };
 }
 
+function addOrModify(o) {
+	if (allFriends[o.id] == undefined) {
+		allFriends[o.id] = o;
+	} else {
+		var rel = o.relation[0]; // the relation specified in the argument
+		if (allFriends[o.id].relation.findIndex(function (x) { return rel.of == x.of && rel.type == x.type; }) > -1) {
+			return;
+		}
+		allFriends[o.id].relation.push(rel);
+	}
+}
+
+var stats = {famReq:0, friendReq:0};
+
 function get_all_friends(friendID, userID) {
 	var outstanding = 0;
-	var get_friends = function(friendID, userID, get_more_friends){
+	var get_friends = function(friendID){
+		if (allFriends[friendID] != undefined) return;
 		outstanding++;
+		stats.friendReq++;
 		$.get(friendID+'?and='+userID+'&sk=friends', function(page){
 			outstanding--;
 			var mutualFriends = $(page).filter('code').map(function() {
@@ -61,58 +77,50 @@ function get_all_friends(friendID, userID) {
 			  	if (mutualFriendsLnks == undefined || mutualFriendsLnks.length == 0) {
 				  	return null;
 			  	}
-			  	return mutualFriendsLnks.map(function(){
-			  		return { id : get_user_name($(this).children().first().attr('href')), name : $(this).children().first().text() };
+			  	mutualFriendsLnks.map(function(){
+			  		var o = { id : get_user_name($(this).children().first().attr('href')) , name : $(this).children().first().text(), relation: [{ type:"Friend", of:userID }] };
+		  			get_friends(o.id);
+			  		addOrModify(o);
 			  	});
 			})[0];
-			mutualFriends = asArray(mutualFriends);
-			get_more_friends(mutualFriends);
+  			get_family_info(friendID);
 			if (outstanding == 0) {
 				allFriendsDone = true;
 			}
 		});
 	}
-	var get_more_friends = function(mutualFriends){
-		var push_into_list = function(friendObj){
-			var friendID = friendObj.id;
-			if (allFriends.findIndex(withId(friendID)) == -1){
-				allFriends.push(friendObj);
-				get_friends(friendID, userID, get_more_friends);
-			}
-		}
-		mutualFriends.forEach(push_into_list);
-	}
-	get_friends(friendID, userID, get_more_friends);
+	get_friends(friendID, userID);
 }
 
 function get_family_info(userID){
+	stats.famReq++;
 	$.get(userID+'/about?section=relationship&pnref=about', function(page){
-
 		var idx = 0;
 		var familyMembers = $(page).filter('code').map(function() {
 			var familyMembersSection = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('._50f5');
 			if (familyMembersSection.length == 0) { // I'm not in the right <code> section.
-				return null;
+				return undefined;
 			}
 			// if I'm here, it's a family members section. Either populated or unpopulated, I don't know yet;
 			var familyMembersLnks = familyMembersSection.find('a');
 			var ret = familyMembersLnks.map(function(){
+				var familyId = get_user_name($(this).attr('href'));
 				if (idx == 0) { // relationship section
-					var innerRet = { id : get_user_name($(this).attr('href')), name : $(this).text(), relationship : $(this).parent().next().text() };
-					return innerRet;
+					var o = { id : familyId, name : $(this).text(), relation : [{ type:$(this).parent().next().text(), of:userID }] };
+					addOrModify(o);
 				} else { // family section
-					var innerRet = { id : get_user_name($(this).attr('href')), name : $(this).text(), relationship : $(this).parent().parent().next().text() };
-					return innerRet;					
+					var o = { id : familyId, name : $(this).text(), relation : [{ type:$(this).parent().parent().next().text(), of:userID }] };
+					addOrModify(o);
 				}
 			});
 			idx++;
-			return ret;
 		});
-		allFamily = asArray(familyMembers).reduce(function(state, curr) {
-			return state.concat(asArray(curr));
-		}, []);
 		allFamilyDone = true;
 	});
+}
+
+function get_friend_family(user){
+	get_family_info(user.id);
 }
 
 function create_view(){
@@ -134,18 +142,22 @@ function create_view(){
 	document.getElementsByTagName("body")[0].appendChild(node);
 }
 
+function isIntimate(rel) {
+	return false; // FIX
+}
+
 function write_all(userID){
 	var closeButton = '<button class="fb_close_button" style="position:absolute;top:20px;right:20px">Close</button>';
-
+/*
 	var relationshipString = "";
-	if (relationship != undefined){
+	if (isIntimate(allFriends[userID].relation)){
 		relationshipString = "<h2>"+userID+" is in a relationship with " + '<a href="https://www.facebook.com/'+relationship.id+'">'+relationship.name+'</a></h2>';
 	}
 
 	var familyString = "";
-	if (allFamily != undefined && allFamily.length != 0){
-		familyString = "<h2>Total of "+allFamily.length+" family members were found for "+userID+"</h2><p>";
-	    allFamily.forEach(function(familyObj){
+	if (allFriends[userID].relations.length != 0){
+		familyString = "<h2>Total of "+allFriends[0].relations.length+" family members were found for "+userID+"</h2><p>";
+	    allFriends[0].relations.forEach(function(familyObj){
 	        familyString += '<a href="https://www.facebook.com/'+familyObj.id+'">'+familyObj.name+'</a> ';
 	    });
 	    familyString += '</p>';
@@ -156,24 +168,66 @@ function write_all(userID){
         friendsString += '<a href="https://www.facebook.com/'+friendObj.id+'">'+friendObj.name+'</a> ';
     });
     friendsString += '</p>';
-  
+*/
+	var out = $('<ul>');
+	Object.keys(allFriends).forEach(function (key) { // FIX
+		var elem = allFriends[key];
+		var li = $('<li>');
+		li.append($('<span>').text(elem.name));
+		elem.relation.forEach(function(rel) {
+			li.append($('<span>').text(' (' + rel.type + ' of ' + rel.of + ')'));
+		});
+		out.append(li);
+	});
+
     var node = document.getElementsByClassName("moaf_result_container")[0];
     var loading = document.getElementById("loading");
     node.removeChild(loading);
-	node.innerHTML = closeButton + relationshipString + familyString + friendsString;
+
+	//node.innerHTML = closeButton + relationshipString + familyString + friendsString;
+	$(node).append($(closeButton)).append(out);
+	console.log(Object.keys(allFriends).length);
+	console.log(stats);
+
+
     closeButtonNode = document.getElementsByClassName("fb_close_button")[0];
     closeButtonNode.onclick = function(){
         var node = document.getElementsByClassName("moaf_result_container")[0];
         var body = document.getElementsByTagName("body")[0].removeChild(node);
     };
 }
-
+/*
+function sameFamilyName() {
+	var getLast = function(userIdx) {
+		var idx = allFriends[userIdx].name.lastIndexOf(' ');
+		if (idx == -1) return null;
+		return allFriends[userIdx].name.substring(idx+1);
+	};
+	var desired = getLast(0);
+	if (desired == null) return null;
+	var results = [];
+	var familyLoop = function(userIdx) {
+		for (var i = 0; i < allFriends[userIdx].relations.length; i++) {
+			var last = getLast(allFriends[userIdx].relations[i]);
+			if (last == desired) results.push(allFriends[userIdx].relations[i].id);
+		}
+	};
+	familyLoop(0);
+	for (var i = 1; i < allFriends.length; i++) {
+		var last = getLast(i);
+		if (last == desired) results.push(allFriends[i].id);
+		familyLoop(i);
+	}
+	return results;
+}
+*/
 function heuristics(userID){
 	if (allFriendsDone){
 	}
 	if (allFamilyDone){
 	}
 	if (allFriendsDone && allFamilyDone && !done){
+		//var blah = sameFamilyName();
 		write_all(userID);
 		done = true;
 	}
@@ -182,38 +236,34 @@ function heuristics(userID){
 
 var allFriends;
 var allFriendsDone;
-var allFamily;
 var allFamilyDone;
-var relationship;
 var done;
 
 function initialise(){
 	allFriends = new Array();
 	allFriendsDone = false;
-	allFamily = new Array();
 	allFamilyDone = false;
-	relationship = undefined;
 	done = false;
 }
 
 $('body').on('click', '.UFIDislikeLink', function(){
 	initialise();
 	var proof = $(this).parents('.userContentWrapper').first().text();
-	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
-	var posterID = get_user_name(posterURL);
+	var posterID = get_user_name($(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href'));
+	var posterName = $(this).parents('.userContentWrapper').find('a.profileLink').first().text();
+	var userID = get_user_name($('body ._2dpe').attr('href'));
 	create_view();
-	get_all_friends('me', posterID);
+	allFriends[posterID] = { id: posterID, name: posterName, relation: [{type:"Identity", of:posterID}] };
+	get_all_friends(userID, posterID);
 	get_family_info(posterID);
 	heuristics(posterID);
 });
-
+/*
 $('body').on('click', '.UFIDislikeCommentLink', function(){
 	initialise();
 	var proof = $(this).parents('.userContentWrapper').first().text();
-	var posterURL = $(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href');
-	var commenterURL = $(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href');
-	var posterID = get_user_name(posterURL);
-	var commenterID = get_user_name(commenterURL);
+	var posterID = get_user_name($(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href'));
+	var commenterID = get_user_name($(this).parents('.UFIRow').first().find('.UFICommentActorName').attr('href'));
 	create_view();
 	if (posterID == commenterID) {
 		get_all_friends('me', commenterID);
@@ -223,7 +273,7 @@ $('body').on('click', '.UFIDislikeCommentLink', function(){
 	get_family_info(commenterID);
 	heuristics(commenterID);
 });
-
+*/
 window.onload = function(){
     var node = document.getElementsByClassName('_4l5');
     var nodeCom = document.getElementsByClassName('fsm fwn fcg UFICommentActions');
