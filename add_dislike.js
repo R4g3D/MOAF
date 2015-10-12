@@ -62,7 +62,7 @@ function addOrModify(o) {
 	}
 }
 
-var stats = {famReq:0, friendReq:0};
+var stats = {famReq:0, friendReq:0, friends:0};
 
 function get_all_friends(friendID, userID) {
 	var outstanding = 0;
@@ -79,6 +79,7 @@ function get_all_friends(friendID, userID) {
 			  	}
 			  	mutualFriendsLnks.map(function(){
 			  		var o = { id : get_user_name($(this).children().first().attr('href')) , name : $(this).children().first().text(), relation: [{ type:"Friend", of:userID }] };
+			  		stats.friends++;
 		  			get_friends(o.id);
 			  		addOrModify(o);
 			  	});
@@ -95,17 +96,19 @@ function get_all_friends(friendID, userID) {
 function get_family_info(userID){
 	stats.famReq++;
 	$.get(userID+'/about?section=relationship&pnref=about', function(page){
-		var idx = 0;
+		var section = 0;
 		var familyMembers = $(page).filter('code').map(function() {
-			var familyMembersSection = $(this.innerHTML.substring(4,this.innerHTML.length-3)).find('._50f5');
+			var fragment = $(this.innerHTML.substring(4,this.innerHTML.length-3));
+			var familyMembersSection = fragment.find('._50f5');
 			if (familyMembersSection.length == 0) { // I'm not in the right <code> section.
 				return undefined;
 			}
+			var isRelationship = fragment.find('span._50f7').first().text() == 'Relationship';
 			// if I'm here, it's a family members section. Either populated or unpopulated, I don't know yet;
 			var familyMembersLnks = familyMembersSection.find('a');
 			var ret = familyMembersLnks.map(function(){
 				var familyId = get_user_name($(this).attr('href'));
-				if (idx == 0) { // relationship section
+				if (isRelationship) { // relationship section
 					var o = { id : familyId, name : $(this).text(), relation : [{ type:$(this).parent().next().text(), of:userID }] };
 					addOrModify(o);
 				} else { // family section
@@ -113,7 +116,6 @@ function get_family_info(userID){
 					addOrModify(o);
 				}
 			});
-			idx++;
 		});
 		allFamilyDone = true;
 	});
@@ -143,7 +145,7 @@ function create_view(){
 }
 
 function isIntimate(rel) {
-	return false; // FIX
+	return false;
 }
 
 function write_all(userID){
@@ -170,7 +172,7 @@ function write_all(userID){
     friendsString += '</p>';
 */
 	var out = $('<ul>');
-	Object.keys(allFriends).forEach(function (key) { // FIX
+	Object.keys(allFriends).forEach(function (key) {
 		var elem = allFriends[key];
 		var li = $('<li>');
 		li.append($('<span>').text(elem.name));
@@ -196,38 +198,34 @@ function write_all(userID){
         var body = document.getElementsByTagName("body")[0].removeChild(node);
     };
 }
-/*
-function sameFamilyName() {
-	var getLast = function(userIdx) {
-		var idx = allFriends[userIdx].name.lastIndexOf(' ');
+
+function sameFamilyName(userID) {
+	var getLast = function(userID) {
+		var idx = allFriends[userID].name.lastIndexOf(' ');
 		if (idx == -1) return null;
-		return allFriends[userIdx].name.substring(idx+1);
+		return allFriends[userID].name.substring(idx+1);
 	};
-	var desired = getLast(0);
+	var desired = getLast(userID);
 	if (desired == null) return null;
-	var results = [];
-	var familyLoop = function(userIdx) {
-		for (var i = 0; i < allFriends[userIdx].relations.length; i++) {
-			var last = getLast(allFriends[userIdx].relations[i]);
-			if (last == desired) results.push(allFriends[userIdx].relations[i].id);
+	var results = Object.keys(allFriends).reduce(function (state, key) {
+		if (key == userID) return state; // don't compare against ourselves
+		var last = getLast(key);
+		if (last == desired) {
+			state[key] = allFriends[key];
 		}
-	};
-	familyLoop(0);
-	for (var i = 1; i < allFriends.length; i++) {
-		var last = getLast(i);
-		if (last == desired) results.push(allFriends[i].id);
-		familyLoop(i);
-	}
+		return state;
+	}, {});
 	return results;
 }
-*/
+
 function heuristics(userID){
 	if (allFriendsDone){
 	}
 	if (allFamilyDone){
 	}
 	if (allFriendsDone && allFamilyDone && !done){
-		//var blah = sameFamilyName();
+		var blah = sameFamilyName(userID);
+		console.log(stats);
 		write_all(userID);
 		done = true;
 	}
