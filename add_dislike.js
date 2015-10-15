@@ -53,6 +53,7 @@ function withId(x) {
 function addOrModify(o) {
 	if (allFriends[o.id] == undefined) {
 		allFriends[o.id] = o;
+		stats.nodes++;
 	} else {
 		var rel = o.relation[0]; // the relation specified in the argument
 		if (allFriends[o.id].relation.findIndex(function (x) { return rel.of == x.of && rel.type == x.type; }) > -1) {
@@ -61,8 +62,6 @@ function addOrModify(o) {
 		allFriends[o.id].relation.push(rel);
 	}
 }
-
-var stats = {famReq:0, friendReq:0, friends:0};
 
 function get_all_friends(friendID, userID) {
 	var outstanding = 0;
@@ -79,7 +78,6 @@ function get_all_friends(friendID, userID) {
 			  	}
 			  	mutualFriendsLnks.map(function(){
 			  		var o = { id : get_user_name($(this).children().first().attr('href')) , name : $(this).children().first().text(), relation: [{ type:"Friend", of:userID }] };
-			  		stats.friends++;
 		  			get_friends(o.id);
 			  		addOrModify(o);
 			  	});
@@ -178,6 +176,8 @@ function write_all(userID){
 		li.append($('<span>').text(elem.name));
 		elem.relation.forEach(function(rel) {
 			li.append($('<span>').text(' (' + rel.type + ' of ' + rel.of + ')'));
+			if (rel.type == "Friend") stats.friends++;
+			if (rel.type != "Friend" && rel.type != "Identity" && rel.of == userID) stats.family++;
 		});
 		out.append(li);
 	});
@@ -188,7 +188,7 @@ function write_all(userID){
 
 	//node.innerHTML = closeButton + relationshipString + familyString + friendsString;
 	$(node).append($(closeButton)).append(out);
-	console.log(Object.keys(allFriends).length);
+
 	console.log(stats);
 
 
@@ -225,12 +225,13 @@ function heuristics(userID){
 	}
 	if (allFriendsDone && allFamilyDone && !done){
 		var blah = sameFamilyName(userID);
-		console.log(stats);
 		write_all(userID);
 		done = true;
 	}
 	setTimeout(heuristics, 50, userID);
 }
+
+var stats = {famReq:0, friendReq:0, friends:0, family:0, nodes:0};
 
 var allFriends;
 var allFriendsDone;
@@ -238,6 +239,7 @@ var allFamilyDone;
 var done;
 
 function initialise(){
+	stats = {famReq:0, friendReq:0, friends:0, family:0, nodes:0};
 	allFriends = new Array();
 	allFriendsDone = false;
 	allFamilyDone = false;
