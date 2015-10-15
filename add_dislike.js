@@ -1,3 +1,11 @@
+function bump(key, amount) {
+	if (allFriends[key].bump == undefined) {
+		allFriends[key].bump = amount;
+	} else {
+		allFriends[key].bump += amount;
+	}
+}
+
 function insert_dislike_button(node){
 	for (i = 0; i < node.length; i++){
 	    var my_node = '<span><a class="UFIDislikeLink" href="#" role="button" aria-live="polite" title="Dislike this post"><span>Dislike</span></a></span>';
@@ -148,32 +156,26 @@ function isIntimate(rel) {
 
 function write_all(userID){
 	var closeButton = '<button class="fb_close_button" style="position:absolute;top:20px;right:20px">Close</button>';
-/*
-	var relationshipString = "";
-	if (isIntimate(allFriends[userID].relation)){
-		relationshipString = "<h2>"+userID+" is in a relationship with " + '<a href="https://www.facebook.com/'+relationship.id+'">'+relationship.name+'</a></h2>';
-	}
-
-	var familyString = "";
-	if (allFriends[userID].relations.length != 0){
-		familyString = "<h2>Total of "+allFriends[0].relations.length+" family members were found for "+userID+"</h2><p>";
-	    allFriends[0].relations.forEach(function(familyObj){
-	        familyString += '<a href="https://www.facebook.com/'+familyObj.id+'">'+familyObj.name+'</a> ';
-	    });
-	    familyString += '</p>';
-	}
-
-    var friendsString = "<h2>Total of "+allFriends.length+" regular friends were found for "+userID+"</h2><p>";
-    allFriends.forEach(function(friendObj){
-        friendsString += '<a href="https://www.facebook.com/'+friendObj.id+'">'+friendObj.name+'</a> ';
-    });
-    friendsString += '</p>';
-*/
 	var out = $('<ul>');
-	Object.keys(allFriends).forEach(function (key) {
+	var cmp = function(aKey,bKey) { // sorts in descending order
+		var a = allFriends[aKey];
+		var b = allFriends[bKey];
+		if (a.bump == undefined && b.bump == undefined) return 0;
+		if (a.bump == undefined) return 1; // a<b
+		if (b.bump == undefined) return -1; // a>b
+		if (a.bump == b.bump) return 0;
+		if (a.bump < b.bump) return 1;
+		return -1;
+	};
+	Object.keys(allFriends).sort(cmp).forEach(function (key) {
+		if (key == userID) return;
 		var elem = allFriends[key];
 		var li = $('<li>');
-		li.append($('<span>').text(elem.name));
+		if (elem.bump == 0) {
+			li.attr('style', 'font-size:smaller;color:gray');
+		}
+		li.append($('<span>').text(elem.bump + ' '));
+		li.append($('<a>').text(elem.name).attr('href', 'https://www.facebook.com/'+encodeURIComponent(elem.id)));
 		elem.relation.forEach(function(rel) {
 			li.append($('<span>').text(' (' + rel.type + ' of ' + rel.of + ')'));
 			if (rel.type == "Friend") stats.friends++;
@@ -186,7 +188,6 @@ function write_all(userID){
     var loading = document.getElementById("loading");
     node.removeChild(loading);
 
-	//node.innerHTML = closeButton + relationshipString + familyString + friendsString;
 	$(node).append($(closeButton)).append(out);
 
 	console.log(stats);
@@ -199,6 +200,27 @@ function write_all(userID){
     };
 }
 
+var weights = {
+	'Mother' : 100,
+	'Father' : 100,
+	'Parent' : 100,
+	'Sister' : 70,
+	'Brother' : 70,
+	'Sibling' : 70,
+	'Child' : 70,
+	'In a relationship' : 50,
+	'Cousin' : 30,
+	'Aunt' : 30,
+	'Uncle' : 30,
+	'Daughter' : 70,
+	'Son' : 70,
+	'Niece' : 20,
+	'Nephew' : 20,
+	'Grand' : 30,
+	'Step' : 50
+};
+var weightKeys = Object.keys(weights);
+
 function sameFamilyName(userID) {
 	var getLast = function(userID) {
 		var idx = allFriends[userID].name.lastIndexOf(' ');
@@ -207,15 +229,33 @@ function sameFamilyName(userID) {
 	};
 	var desired = getLast(userID);
 	if (desired == null) return null;
-	var results = Object.keys(allFriends).reduce(function (state, key) {
-		if (key == userID) return state; // don't compare against ourselves
+	Object.keys(allFriends).forEach(function (key) {
 		var last = getLast(key);
-		if (last == desired) {
-			state[key] = allFriends[key];
+		if (last == desired && key != userID) {
+			bump(key, 10);
 		}
-		return state;
 	}, {});
-	return results;
+}
+
+function isFamily(userID) {
+	var relatedBump = function(relations) {
+		return relations.reduce(function (state, item) {
+			var w = 0; // weighting because of this /item/
+			if (item.of == userID) {
+				for (var i = 0; i < weightKeys.length; i++) {
+					if (item.type.startsWith(weightKeys[i])) {
+						w += weights[weightKeys[i]];
+					}
+				}
+			}
+			return state + w;
+		}, 0);
+	};
+	Object.keys(allFriends).forEach(function (key) {
+		if (key != userID) {
+			bump(key, relatedBump(allFriends[key].relation));
+		}
+	});
 }
 
 function heuristics(userID){
@@ -224,7 +264,11 @@ function heuristics(userID){
 	if (allFamilyDone){
 	}
 	if (allFriendsDone && allFamilyDone && !done){
-		var blah = sameFamilyName(userID);
+		// hyooooooooooooooooooooooooooooooooooooooooooooooooooooRISTIKZ!!!
+		sameFamilyName(userID);
+		isFamily(userID);
+		// check idirect family relation
+		// push 'em out
 		write_all(userID);
 		done = true;
 	}
@@ -250,7 +294,7 @@ $('body').on('click', '.UFIDislikeLink', function(){
 	initialise();
 	var proof = $(this).parents('.userContentWrapper').first().text();
 	var posterID = get_user_name($(this).parents('.userContentWrapper').first().find('._5pb8').first().attr('href'));
-	var posterName = $(this).parents('.userContentWrapper').find('a.profileLink').first().text();
+	var posterName = $(this).parents('.userContentWrapper').first().find('.fwb').first().children().first().text();
 	var userID = get_user_name($('body ._2dpe').attr('href'));
 	create_view();
 	allFriends[posterID] = { id: posterID, name: posterName, relation: [{type:"Identity", of:posterID}] };
