@@ -264,11 +264,8 @@ function heuristics(userID){
 	if (allFamilyDone){
 	}
 	if (allFriendsDone && allFamilyDone && !done){
-		// hyooooooooooooooooooooooooooooooooooooooooooooooooooooRISTIKZ!!!
 		sameFamilyName(userID);
 		isFamily(userID);
-		// check idirect family relation
-		// push 'em out
 		write_all(userID);
 		done = true;
 	}
